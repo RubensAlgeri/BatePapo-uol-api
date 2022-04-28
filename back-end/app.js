@@ -40,11 +40,18 @@ app.post("/participants", async (req, res) => {
         await mongoClient.connect();
         database = mongoClient.db("bate-papo-uol-api");
         const {name} = req.body;
+        const schema = Joi.object({
+            username: Joi.string()
+                .min(1)
+                .required()
+        });
+        await schema.validateAsync({username:name})
         const user = {name, lastStatus: Date.now()}
         await database.collection("participantes").insertOne(user);
         res.sendStatus(200)
         mongoClient.close();
     } catch (err) {
+        res.sendStatus(423)
         mongoClient.close();
     }
 })
