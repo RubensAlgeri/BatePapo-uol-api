@@ -21,7 +21,6 @@ app.use(cors())
 app.use(express.json())
 
 const mensagens = []
-const participantes = []
 
 app.get("/participants", async (req, res) => {
     try {
@@ -48,6 +47,8 @@ app.post("/participants", async (req, res) => {
         await schema.validateAsync({username:name})
         const user = {name, lastStatus: Date.now()}
         await database.collection("participantes").insertOne(user);
+        let mensagem = {from: name, to:"Todos", text: 'entra na sala...', type: 'status',time: dayjs().locale('pt-br').format('HH:mm:ss')}
+        await database.collection("mensagens").insertOne(mensagem);
         res.sendStatus(200)
         mongoClient.close();
     } catch (err) {
@@ -61,7 +62,7 @@ app.get("/messages", async (req, res) => {
         await mongoClient.connect();
         database = mongoClient.db("bate-papo-uol-api");
         let limite = req.query.limit;
-    
+        const mensagens = await database.collection("mensagens").find().toArray();    
         res.send(mensagens.slice(0, limite))
         mongoClient.close();
     } catch (err) {
@@ -75,7 +76,7 @@ app.post("/messages", async (req, res) => {
         database = mongoClient.db("bate-papo-uol-api");
         const { to, text, type } = req.body;
         const user = req.header('User')
-        mensagens.push({ to, text, type, from: user })
+        mensagens.push({ to, text, type, from: user, time: dayjs().locale('pt-br').format('HH:MM:SS')})
         res.sendStatus(200)
         mongoClient.close();
     } catch (err) {
