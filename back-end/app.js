@@ -49,7 +49,7 @@ app.post("/participants", async (req, res) => {
         await database.collection("participantes").insertOne(user);
         let mensagem = {from: name, to:"Todos", text: 'entra na sala...', type: 'status',time: dayjs().locale('pt-br').format('HH:mm:ss')}
         await database.collection("mensagens").insertOne(mensagem);
-        res.sendStatus(200)
+        res.sendStatus(201)
         mongoClient.close();
     } catch (err) {
         res.sendStatus(423)
@@ -75,11 +75,29 @@ app.post("/messages", async (req, res) => {
         await mongoClient.connect();
         database = mongoClient.db("bate-papo-uol-api");
         const { to, text, type } = req.body;
-        const user = req.header('User')
-        mensagens.push({ to, text, type, from: user, time: dayjs().locale('pt-br').format('HH:MM:SS')})
-        res.sendStatus(200)
+        const username = req.header('User')
+        const participante = await database.collection("participantes").find({name:username}).toArray();
+        const schema = Joi.object({
+            to: Joi.string()
+            .min(1)
+            .required(),
+            text: Joi.string()
+            .min(1)
+            .required(),
+            type: Joi.string()
+            .valid("message","private_message")
+            .required(),
+            from: Joi.string()
+            .valid(participante[0].name)
+            .required()
+        });
+        await schema.validateAsync({to, type, text, from:username})
+        let mensagem = { to, text, type, from: username, time: dayjs().locale('pt-br').format('HH:mm:ss')}
+        await database.collection("mensagens").insertOne(mensagem);
+        res.sendStatus(201)
         mongoClient.close();
     } catch (err) {
+        res.sendStatus(413)
         mongoClient.close();
     }
 })
