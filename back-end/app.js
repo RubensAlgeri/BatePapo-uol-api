@@ -61,8 +61,10 @@ app.get("/messages", async (req, res) => {
     try {
         await mongoClient.connect();
         database = mongoClient.db("bate-papo-uol-api");
-        let limite = req.query.limit;
-        const mensagens = await database.collection("mensagens").find().toArray();    
+        const username = req.header('User')
+        let limite = 100;
+        limite = req.query.limit;
+        const mensagens = await database.collection("mensagens").find({$or:[{type:"message"},{to:username},{from:username}]}).toArray();
         res.send(mensagens.slice(0, limite))
         mongoClient.close();
     } catch (err) {
@@ -97,7 +99,7 @@ app.post("/messages", async (req, res) => {
         res.sendStatus(201)
         mongoClient.close();
     } catch (err) {
-        res.sendStatus(413)
+        res.sendStatus(422)
         mongoClient.close();
     }
 })
