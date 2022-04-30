@@ -48,7 +48,7 @@ app.post("/participants", async (req, res) => {
             await database.collection("participantes").insertOne(user);
             let mensagem = { from: name, to: "Todos", text: 'entra na sala...', type: 'status', time: dayjs().locale('pt-br').format('HH:mm:ss') }
             await database.collection("mensagens").insertOne(mensagem);
-            res.sendStatus(201)
+            res.status(201).send(name)
         } else {
             res.sendStatus(409)
         };
@@ -98,7 +98,7 @@ app.post("/messages", async (req, res) => {
 
 app.post("/status", async (req, res) => {
     try {
-        const username = req.header('User')
+        const username = stripHtml(req.header('User')).result.trim();
         const participante = await database.collection("participantes").findOne({ name: username });
         if (participante) {
             await database.collection("participantes").updateOne({ name: participante.name }, { $set: { lastStatus: Date.now() } });
