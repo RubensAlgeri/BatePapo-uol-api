@@ -5,6 +5,7 @@ import dayjs from "dayjs"
 import { MongoClient, ObjectId } from "mongodb"
 import dotenv from "dotenv"
 import Joi from "joi"
+import { stripHtml } from "string-strip-html"
 dotenv.config()
 
 const mongoClient = new MongoClient(process.env.MONGO_URI);
@@ -31,7 +32,7 @@ app.get("/participants", async (req, res) => {
 })
 
 app.post("/participants", async (req, res) => {
-    const { name } = req.body;
+    const name = stripHtml(req.body.name).result.trim();
     const schema = Joi.object({
         username: Joi.string().min(1).required()
     });
@@ -70,8 +71,11 @@ app.get("/messages", async (req, res) => {
 
 app.post("/messages", async (req, res) => {
     try {
-        const { to, text, type } = req.body;
-        const username = req.header('User')
+        const to = stripHtml(req.body.to).result.trim();
+        const text = stripHtml(req.body.text).result.trim();
+        const type = stripHtml(req.body.type).result.trim();
+        const username = stripHtml(req.header('User')).result.trim();
+
         const participante = await database.collection("participantes").findOne({ name: username });
         const schema = Joi.object({
             to: Joi.string().min(1).required(),
