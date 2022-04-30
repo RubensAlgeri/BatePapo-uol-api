@@ -84,7 +84,7 @@ app.post("/messages", async (req, res) => {
             res.status(422).send(validacao.error.details.message)
             return
         }
-        let mensagem = { from: username, to, text, type,  time: dayjs().locale('pt-br').format('HH:mm:ss') }
+        let mensagem = { from: username, to, text, type, time: dayjs().locale('pt-br').format('HH:mm:ss') }
         await database.collection("mensagens").insertOne(mensagem);
         res.sendStatus(201);
     } catch (err) {
@@ -105,31 +105,46 @@ app.post("/status", async (req, res) => {
     }
 })
 
-app.put("/messages/:ID", async (req, res)=>{
-    try{
-        const username = req.header('User')
+app.put("/messages/:ID", async (req, res) => {
+    try {
+        const { to, text, type } = req.body;
         const id = req.params.ID
-
-    }catch(err){
-
+        const username = req.header('User')
+        const msg = await database.collection("mensagens").findOne({ _id: new ObjectId(id) });
+        const schema = Joi.object({
+            to: Joi.string().min(1).required(),
+            text: Joi.string().min(1).required(),
+            type: Joi.string().valid("message", "private_message").required(),
+            from: Joi.string().valid(msg.from).required()
+        });
+        const validacao = schema.validate({ to, type, text, from: username }, { abortEarly: false })
+        if (validacao.error) {
+            res.status(422).send(validacao.error.details.message)
+            return
+        }
+        let mensagem = { from: username, to, text, type }
+        await database.collection("mensagens").updateOne({ _id: new ObjectId(id) }, { $set: mensagem });
+        res.sendStatus(201);
+    } catch (err) {
+        res.sendStatus(422);
     }
 })
 
-app.delete("/messages/:ID", async (req, res)=>{
-    try{
+app.delete("/messages/:ID", async (req, res) => {
+    try {
         const username = req.header('User')
         const id = req.params.ID
-        const mensagem = await database.collection("mensagens").findOne({_id: new ObjectId(id)})
+        const mensagem = await database.collection("mensagens").findOne({ _id: new ObjectId(id) })
         const schema = Joi.object({
             from: Joi.string().valid(mensagem.from)
         })
-        const validacao = schema.validate({from:username})
-        if(validacao.error){
-            res.status(404).send(validacao.error.details.message)
+        const validacao = schema.validate({ from: username })
+        if (validacao.error) {
+            res.status(401).send("você não é o remetente desta mensagem")
             return
         }
-        await database.collection("mensagens").deleteOne({_id: new ObjectId(id)})
-    }catch(err){
+        await database.collection("mensagens").deleteOne({ _id: new ObjectId(id) })
+    } catch (err) {
 
     }
 })
