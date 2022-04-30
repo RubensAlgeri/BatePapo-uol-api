@@ -2,7 +2,7 @@ import express from "express"
 import cors from "cors"
 import chalk from "chalk"
 import dayjs from "dayjs"
-import { MongoClient } from "mongodb"
+import { MongoClient, ObjectId } from "mongodb"
 import dotenv from "dotenv"
 import Joi from "joi"
 dotenv.config()
@@ -37,7 +37,6 @@ app.post("/participants", async (req, res) => {
     });
     const validacao = schema.validate({ username: name })
     if (validacao.error) {
-        console.log(validacao.error.details)
         res.status(422).send(validacao.error.details.message)
         return
     }
@@ -82,11 +81,10 @@ app.post("/messages", async (req, res) => {
         });
         const validacao = schema.validate({ to, type, text, from: username }, { abortEarly: false })
         if (validacao.error) {
-            console.log(validacao.error.details)
             res.status(422).send(validacao.error.details.message)
             return
         }
-        let mensagem = { to, text, type, from: username, time: dayjs().locale('pt-br').format('HH:mm:ss') }
+        let mensagem = { from: username, to, text, type,  time: dayjs().locale('pt-br').format('HH:mm:ss') }
         await database.collection("mensagens").insertOne(mensagem);
         res.sendStatus(201);
     } catch (err) {
@@ -99,13 +97,40 @@ app.post("/status", async (req, res) => {
         const username = req.header('User')
         const participante = await database.collection("participantes").findOne({ name: username });
         if (participante) {
-            console.log("atualizei status do ", participante.name)
             await database.collection("participantes").updateOne({ name: participante.name }, { $set: { lastStatus: Date.now() } });
             res.sendStatus(200)
         }
     } catch (err) {
-        console.log(err)
         res.sendStatus(404);
+    }
+})
+
+app.put("/messages/:ID", async (req, res)=>{
+    try{
+        const username = req.header('User')
+        const id = req.params.ID
+
+    }catch(err){
+
+    }
+})
+
+app.delete("/messages/:ID", async (req, res)=>{
+    try{
+        const username = req.header('User')
+        const id = req.params.ID
+        const mensagem = await database.collection("mensagens").findOne({_id: new ObjectId(id)})
+        const schema = Joi.object({
+            from: Joi.string().valid(mensagem.from)
+        })
+        const validacao = schema.validate({from:username})
+        if(validacao.error){
+            res.status(404).send(validacao.error.details.message)
+            return
+        }
+        await database.collection("mensagens").deleteOne({_id: new ObjectId(id)})
+    }catch(err){
+
     }
 })
 
