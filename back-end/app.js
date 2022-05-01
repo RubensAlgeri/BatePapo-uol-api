@@ -38,7 +38,7 @@ app.post("/participants", async (req, res) => {
     });
     const validacao = schema.validate({ username: name })
     if (validacao.error) {
-        res.status(422).send(validacao.error.details.message)
+        res.status(422).send(validacao.error.details.map(detail=>detail.message))
         return
     }
     try {
@@ -85,7 +85,7 @@ app.post("/messages", async (req, res) => {
         });
         const validacao = schema.validate({ to, type, text, from: username }, { abortEarly: false })
         if (validacao.error) {
-            res.status(422).send(validacao.error.details.message)
+            res.status(422).send(validacao.error.details.map(detail=>detail.message))
             return
         }
         let mensagem = { from: username, to, text, type, time: dayjs().locale('pt-br').format('HH:mm:ss') }
@@ -111,19 +111,28 @@ app.post("/status", async (req, res) => {
 
 app.put("/messages/:ID", async (req, res) => {
     try {
-        const { to, text, type } = req.body;
+        const to = stripHtml(req.body.to).result.trim();
+        const text = stripHtml(req.body.text).result.trim();
+        const type = stripHtml(req.body.type).result.trim();
+        const username = stripHtml(req.header('User')).result.trim();
         const id = req.params.ID
-        const username = req.header('User')
         const msg = await database.collection("mensagens").findOne({ _id: new ObjectId(id) });
+        if(msg.from != username){
+            res.sendStatus(401)
+            return
+        }
+        if (!msg) {
+            res.sendStatus(404)
+            return
+        }
         const schema = Joi.object({
             to: Joi.string().min(1).required(),
             text: Joi.string().min(1).required(),
             type: Joi.string().valid("message", "private_message").required(),
-            from: Joi.string().valid(msg.from).required()
         });
-        const validacao = schema.validate({ to, type, text, from: username }, { abortEarly: false })
+        const validacao = schema.validate({ to, type, text}, { abortEarly: false })
         if (validacao.error) {
-            res.status(422).send(validacao.error.details.message)
+            res.status(422).send(validacao.error.details.map(detail=>detail.message))
             return
         }
         let mensagem = { from: username, to, text, type }
@@ -139,6 +148,10 @@ app.delete("/messages/:ID", async (req, res) => {
         const username = req.header('User')
         const id = req.params.ID
         const mensagem = await database.collection("mensagens").findOne({ _id: new ObjectId(id) })
+        if (!mensagem) {
+            res.sendStatus(404)
+            return
+        }
         const schema = Joi.object({
             from: Joi.string().valid(mensagem.from)
         })
@@ -148,6 +161,7 @@ app.delete("/messages/:ID", async (req, res) => {
             return
         }
         await database.collection("mensagens").deleteOne({ _id: new ObjectId(id) })
+        res.sendStatus(200)
     } catch (err) {
 
     }
